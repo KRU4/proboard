@@ -64,6 +64,20 @@ const DataService = (() => {
     return JSON.parse(raw);
   }
 
+  async function fetchFromApi() {
+    const res = await fetch(`${CONFIG.apiUrl}/api/employees`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const rows = await res.json();
+    return rows.map((row, idx) => ({
+      id: row.id,
+      rank: idx + 1,
+      name: row.name,
+      score: row.score,
+      department: row.department || '',
+      avatar: row.avatar || '',
+    }));
+  }
+
   async function fetchData() {
     let employees = [];
 
@@ -82,12 +96,19 @@ const DataService = (() => {
         employees = fetchFromStorage();
         break;
       }
+      case 'api': {
+        employees = await fetchFromApi();
+        break;
+      }
       default: {
         console.error('Unknown mode:', CONFIG.mode);
         return [];
       }
     }
 
+    if (CONFIG.mode === 'api') {
+      return employees;
+    }
     const sorted = sortByScore(employees);
     const ranked = assignRanks(sorted);
     return ranked;

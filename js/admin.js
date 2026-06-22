@@ -1,34 +1,22 @@
 (function initAdmin() {
-  const STORAGE_KEY = 'proboard_data';
-
   let employees = [];
-  let authenticated = false;
 
-  const pinOverlay = document.getElementById('pin-overlay');
   const mainPanel = document.getElementById('main-panel');
-  const pinInput = document.getElementById('pin-input');
-  const pinError = document.getElementById('pin-error');
   const form = document.getElementById('employee-form');
   const formTitle = document.getElementById('form-title');
-  const editIndex = document.getElementById('edit-index');
+  const editId = document.getElementById('edit-id');
   const tbody = document.getElementById('employee-table-body');
   const countEl = document.getElementById('employee-count');
 
-  function loadFromStorage() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        employees = JSON.parse(raw);
-      } catch (e) {
-        employees = [];
-      }
-    } else {
+  async function loadFromApi() {
+    try {
+      const res = await fetch(`${CONFIG.apiUrl}/api/employees`);
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      employees = await res.json();
+    } catch (err) {
+      console.error('Failed to load employees:', err);
       employees = [];
     }
-  }
-
-  function saveToStorage() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(employees));
   }
 
   function renderTable() {
@@ -40,10 +28,7 @@
       return;
     }
 
-    const sorted = [...employees].sort((a, b) => b.score - a.score);
-
-    tbody.innerHTML = sorted.map((emp, idx) => {
-      const originalIdx = employees.indexOf(emp);
+    tbody.innerHTML = employees.map((emp, idx) => {
       const initials = getInitials(emp.name);
       const color = getAvatarColor(emp.name);
       return `
@@ -60,8 +45,8 @@
             <span class="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-lg font-bold">${emp.score.toLocaleString()}</span>
           </td>
           <td class="px-6 py-3 text-right">
-            <button onclick="editEmployee(${originalIdx})" class="text-blue-400 hover:text-blue-300 text-sm font-medium mr-3">Edit</button>
-            <button onclick="deleteEmployee(${originalIdx})" class="text-red-400 hover:text-red-300 text-sm font-medium">Delete</button>
+            <button onclick="editEmployee(${emp.id})" class="text-blue-400 hover:text-blue-300 text-sm font-medium mr-3">Edit</button>
+            <button onclick="deleteEmployee(${emp.id})" class="text-red-400 hover:text-red-300 text-sm font-medium">Delete</button>
           </td>
         </tr>
       `;
@@ -96,24 +81,6 @@
     }
     return colors[Math.abs(hash) % colors.length];
   }
-
-  function checkPin() {
-    const entered = pinInput.value.trim();
-    if (entered === CONFIG.adminPin) {
-      authenticated = true;
-      pinOverlay.classList.add('hidden');
-      mainPanel.classList.remove('hidden');
-      pinError.classList.add('hidden');
-    } else {
-      pinError.classList.remove('hidden');
-      pinInput.value = '';
-      pinInput.focus();
-    }
-  }
-
-  pinInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') checkPin();
-  });
 
   // --- Image upload logic ---
   let avatarBase64 = '';
@@ -185,39 +152,55 @@
     avatarUrl.value = '';
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('emp-name').value.trim();
     const score = parseInt(document.getElementById('emp-score').value, 10) || 0;
     const department = document.getElementById('emp-dept').value.trim();
     const avatar = avatarBase64 || document.getElementById('emp-avatar').value.trim();
-    const idx = parseInt(editIndex.value, 10);
+    const id = editId.value;
 
     if (!name) return;
 
-    const entry = { name, score, department, avatar };
+    const body = { name, score, department, avatar };
 
-    if (idx >= 0 && idx < employees.length) {
-      employees[idx] = entry;
+    try {
+      if (id) {
+        await fetch(`${CONFIG.apiUrl}/api/employees/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } else {
+        await fetch(`${CONFIG.apiUrl}/api/employees`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      }
+
+      await loadAndRender();
+      form.reset();
+      clearPreview();
+      avatarBase64 = '';
+      document.getElementById('emp-avatar').value = '';
+      editId.value = '';
       formTitle.textContent = 'Add Employee';
-      editIndex.value = '-1';
-    } else {
-      employees.push(entry);
+      document.getElementById('emp-name').focus();
+    } catch (err) {
+      console.error('Save failed:', err);
     }
-
-    saveToStorage();
-    renderTable();
-    form.reset();
-    clearPreview();
-    avatarBase64 = '';
-    document.getElementById('emp-avatar').value = '';
-    document.getElementById('emp-name').focus();
   });
 
-  window.editEmployee = function(idx) {
-    if (idx < 0 || idx >= employees.length) return;
-    const emp = employees[idx];
+  async function loadAndRender() {
+    await loadFromApi();
+    renderTable();
+  }
+
+  window.editEmployee = function(id) {
+    const emp = employees.find(e => e.id === id);
+    if (!emp) return;
     document.getElementById('emp-name').value = emp.name;
     document.getElementById('emp-score').value = emp.score;
     document.getElementById('emp-dept').value = emp.department || '';
@@ -233,20 +216,22 @@
       document.getElementById('emp-avatar').value = av;
     }
 
-    editIndex.value = idx;
+    editId.value = id;
     formTitle.textContent = 'Edit Employee';
     document.getElementById('emp-name').focus();
   };
 
-  window.deleteEmployee = function(idx) {
-    if (idx < 0 || idx >= employees.length) return;
-    employees.splice(idx, 1);
-    saveToStorage();
-    renderTable();
-    if (parseInt(editIndex.value, 10) === idx) {
-      form.reset();
-      editIndex.value = '-1';
-      formTitle.textContent = 'Add Employee';
+  window.deleteEmployee = async function(id) {
+    try {
+      await fetch(`${CONFIG.apiUrl}/api/employees/${id}`, { method: 'DELETE' });
+      if (editId.value === String(id)) {
+        form.reset();
+        editId.value = '';
+        formTitle.textContent = 'Add Employee';
+      }
+      await loadAndRender();
+    } catch (err) {
+      console.error('Delete failed:', err);
     }
   };
 
@@ -265,6 +250,6 @@
     URL.revokeObjectURL(url);
   };
 
-  loadFromStorage();
-  pinInput.focus();
+  mainPanel.classList.remove('hidden');
+  loadAndRender();
 })();

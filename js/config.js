@@ -1,5 +1,7 @@
 const CONFIG = {
-  mode: 'admin_panel',
+  mode: 'api',
+
+  apiUrl: 'http://192.168.31.253:3001',
 
   googleSheetCsvUrl: '',
 

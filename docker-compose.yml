@@ -1,0 +1,24 @@
+services:
+  api:
+    build: ./api
+    container_name: proboard_api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5432
+      - DB_USER=evolution_user
+      - DB_PASSWORD=YourStrongPassword123
+      - DB_NAME=proboard
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  board:
+    image: nginx:alpine
+    container_name: proboard
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
