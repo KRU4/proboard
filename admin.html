@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProBoard — Admin Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Poppins', 'Inter', sans-serif; }
+    body { background: #0A0E1A; color: #FFFFFF; margin: 0; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- PIN Overlay -->
+  <div id="pin-overlay" class="fixed inset-0 flex items-center justify-center z-50" style="background: rgba(10,14,26,0.98);">
+    <div class="bg-gray-900 rounded-2xl p-10 w-full max-w-md border border-gray-800 text-center">
+      <div class="text-5xl mb-4">🔒</div>
+      <h2 class="text-white text-2xl font-bold mb-2">Admin Access</h2>
+      <p class="text-gray-500 mb-6">Enter PIN to continue</p>
+      <input type="password" id="pin-input" maxlength="6" placeholder="PIN"
+             class="w-full bg-gray-800 border border-gray-700 rounded-xl px-5 py-4 text-white text-center text-3xl tracking-widest outline-none focus:border-blue-500 transition"
+             autofocus>
+      <p id="pin-error" class="text-red-500 text-sm mt-3 hidden">Incorrect PIN</p>
+    </div>
+  </div>
+
+  <!-- Main Panel (hidden behind PIN) -->
+  <div id="main-panel" class="hidden max-w-4xl mx-auto px-6 py-8">
+    <header class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-4">
+        <img src="pe-no-bg.png" alt="Pro Group" style="height: 36px;">
+        <h1 class="text-white text-3xl font-extrabold">Admin Panel</h1>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="text-blue-400 hover:text-blue-300 text-sm font-medium">View Scoreboard</a>
+        <button onclick="exportToCsv()" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+          Export CSV
+        </button>
+      </div>
+    </header>
+
+    <!-- Add Employee Form -->
+    <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 mb-6">
+      <h2 class="text-white text-lg font-bold mb-4" id="form-title">Add Employee</h2>
+      <form id="employee-form" class="flex items-end gap-4 flex-wrap">
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">Name</label>
+          <input type="text" id="emp-name" required placeholder="Employee name"
+                 class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition">
+        </div>
+        <div class="w-36">
+          <label class="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">Score</label>
+          <input type="number" id="emp-score" required placeholder="Score" min="0"
+                 class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition">
+        </div>
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">Department (optional)</label>
+          <input type="text" id="emp-dept" placeholder="e.g. Banking"
+                 class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition">
+        </div>
+        <div class="flex-1 min-w-[280px]">
+          <label class="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">Avatar (optional)</label>
+          <div class="flex items-center gap-3">
+            <input type="text" id="emp-avatar" placeholder="Paste image URL..."
+                   class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white outline-none focus:border-blue-500 transition text-sm">
+            <span class="text-gray-600 text-xs font-medium">OR</span>
+            <div id="drop-zone"
+                 class="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed border-gray-600 cursor-pointer transition hover:border-gray-400"
+                 style="min-width: 180px;">
+              <span class="text-lg">📷</span>
+              <span class="text-gray-500 text-xs leading-tight">Drop image<br>or click</span>
+              <input type="file" id="avatar-file" accept="image/*" class="hidden">
+            </div>
+          </div>
+          <div id="avatar-preview" class="mt-2 hidden">
+            <img id="avatar-preview-img" src="" alt="Preview" class="w-10 h-10 rounded-full object-cover border border-gray-600">
+            <button type="button" id="avatar-clear" class="text-red-400 hover:text-red-300 text-xs ml-2">Remove</button>
+          </div>
+        </div>
+        <input type="hidden" id="edit-index" value="-1">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition">
+          Save
+        </button>
+      </form>
+    </div>
+
+    <!-- Employee Table -->
+    <div class="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+        <h2 class="text-white text-lg font-bold">Current Employees</h2>
+        <span id="employee-count" class="text-gray-500 text-sm">0 employees</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-800">
+              <th class="text-left px-6 py-3">#</th>
+              <th class="text-left px-6 py-3">Name</th>
+              <th class="text-left px-6 py-3">Department</th>
+              <th class="text-right px-6 py-3">Score</th>
+              <th class="text-right px-6 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="employee-table-body">
+            <tr>
+              <td colspan="5" class="text-center text-gray-600 py-12">No employees yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
