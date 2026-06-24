@@ -1,0 +1,153 @@
+/* === ProBoard TV Styles === */
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  background-color: #0A0E1A;
+  font-family: 'Poppins', 'Inter', sans-serif;
+}
+
+@keyframes champion-glow {
+  0%, 100% { box-shadow: 0 0 30px 5px rgba(251, 191, 36, 0.4); }
+  50%      { box-shadow: 0 0 60px 15px rgba(251, 191, 36, 0.7); }
+}
+.champion-glow {
+  animation: champion-glow 3s ease-in-out infinite;
+}
+
+@keyframes rank-up-flash {
+  0%   { background-color: rgba(34, 197, 94, 0.3); transform: translateY(-4px); }
+  100% { background-color: transparent; transform: translateY(0); }
+}
+.rank-up {
+  animation: rank-up-flash 1.5s ease-out forwards;
+}
+
+@keyframes rank-down-flash {
+  0%   { background-color: rgba(239, 68, 68, 0.3); }
+  100% { background-color: transparent; }
+}
+.rank-down {
+  animation: rank-down-flash 1.5s ease-out forwards;
+}
+
+.champion-border {
+  border: 3px solid transparent;
+  background: linear-gradient(#111827, #111827) padding-box,
+              linear-gradient(135deg, #F59E0B, #FCD34D, #F59E0B) border-box;
+}
+
+.silver-border {
+  border: 2px solid transparent;
+  background: linear-gradient(#111827, #111827) padding-box,
+              linear-gradient(135deg, #9CA3AF, #E5E7EB, #9CA3AF) border-box;
+}
+
+.bronze-border {
+  border: 2px solid transparent;
+  background: linear-gradient(#111827, #111827) padding-box,
+              linear-gradient(135deg, #B45309, #D97706, #B45309) border-box;
+}
+
+.score-badge-champion {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: #0A0E1A;
+  font-weight: 800;
+  border-radius: 16px;
+  padding: 8px 32px;
+  display: inline-block;
+}
+
+.score-badge-silver {
+  background: linear-gradient(135deg, #9CA3AF, #6B7280);
+  color: #FFF;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 6px 24px;
+  display: inline-block;
+}
+
+.score-badge-bronze {
+  background: linear-gradient(135deg, #D97706, #B45309);
+  color: #FFF;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 6px 24px;
+  display: inline-block;
+}
+
+.score-badge-minor {
+  background: #1E4FA0;
+  color: #FFF;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 4px 18px;
+  display: inline-block;
+}
+
+.avatar-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #FFF;
+  text-transform: uppercase;
+}
+
+.avatar-circle-champion {
+  width: 200px;
+  height: 200px;
+  font-size: 5rem;
+}
+
+.avatar-img-champion {
+  width: 200px;
+  height: 200px;
+}
+
+.avatar-circle-minor {
+  width: 36px;
+  height: 36px;
+  font-size: 0.8rem;
+}
+
+.minor-row {
+  transition: all 0.3s ease;
+}
+.minor-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+#footer-sync {
+  color: #9CA3AF;
+  font-size: 0.9rem;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.sync-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4CAF50;
+  margin-right: 6px;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}

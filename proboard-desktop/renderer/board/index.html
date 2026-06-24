@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0">
+  <title>ProBoard — Live Employee Scoreboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    * { font-family: 'Poppins', 'Inter', sans-serif; }
+    .tv-container {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0A0E1A;
+    }
+  </style>
+</head>
+<body>
+  <div class="tv-container">
+    <header class="flex items-center justify-between px-10 py-4 border-b border-gray-800" style="min-height: 9vh;">
+      <div class="flex items-center gap-5">
+        <img src="../../assets/pe-no-bg.png" alt="Pro Group" style="height: 44px;">
+        <div>
+          <h2 class="text-white text-2xl font-extrabold tracking-tight" id="board-title">
+            ProBoard — Live Scoreboard
+          </h2>
+          <p class="text-gray-500 text-sm font-medium">Pro Group Medical & Engineering Services</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div class="text-white text-lg font-semibold" id="current-date"></div>
+          <div class="text-gray-500 text-sm" id="current-time"></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex gap-5 px-8 py-5" style="height: 100%; overflow: hidden;">
+      <div id="champion-zone" class="flex-shrink-0 flex items-center justify-center overflow-y-auto" style="width: 55%;">
+        <div class="text-gray-600 text-3xl font-bold animate-pulse">Loading...</div>
+      </div>
+      <div class="flex-1 flex flex-col gap-4 overflow-hidden" style="min-width: 0;">
+        <div id="secondary-zone" class="flex flex-col gap-4 flex-shrink-0"></div>
+        <div id="minor-list" class="flex-1 flex flex-col gap-2 overflow-y-auto" style="max-height: calc(91vh - 320px);"></div>
+      </div>
+    </main>
+
+    <footer class="flex items-center justify-between px-10 py-2 border-t border-gray-800" style="min-height: 4vh;">
+      <div id="footer-sync" class="text-gray-500 text-sm">
+        <span class="sync-dot"></span> Waiting for first sync...
+      </div>
+      <div class="text-gray-600 text-xs">ProBoard v1.0</div>
+    </footer>
+  </div>
+
+  <script src="board.js"></script>
+</body>
+</html>

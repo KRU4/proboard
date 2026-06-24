@@ -1,0 +1,34 @@
+body {
+  background: #0A0E1A;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.score-editable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.score-editable:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.score-input {
+  width: 80px;
+  background: #1F2937;
+  border: 1px solid #3B82F6;
+  border-radius: 6px;
+  color: #FFF;
+  text-align: right;
+  padding: 4px 8px;
+  font-weight: 700;
+}
+
+.excel-section {
+  background: linear-gradient(135deg, rgba(30, 79, 160, 0.15) 0%, rgba(17, 24, 39, 1) 100%);
+  border: 1px solid rgba(30, 79, 160, 0.4);
+}
+
+.excel-connected {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.12) 0%, rgba(17, 24, 39, 1) 100%);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
