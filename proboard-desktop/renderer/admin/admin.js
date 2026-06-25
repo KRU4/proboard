@@ -32,9 +32,103 @@
 
   async function chooseExcelFile() {
     const result = await window.proboard.chooseExcelFile();
+    if (!result.success) return;
+
+    if (result.sheets.length === 1) {
+      // ورقة واحدة — مباشرة
+      await applySheet(result.filePath, 0);
+    } else {
+      // أكتر من ورقة — ورّي الـ sheet picker
+      showSheetPicker(result.filePath, result.sheets);
+    }
+  }
+
+  function showSheetPicker(filePath, sheets) {
+    // امسح أي picker قديم
+    const old = document.getElementById('sheet-picker-modal');
+    if (old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'sheet-picker-modal';
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50';
+    modal.style.background = 'rgba(0,0,0,0.7)';
+
+    const options = sheets.map((name, idx) =>
+      `<button data-idx="${idx}"
+        class="sheet-option w-full text-left px-4 py-3 rounded-lg bg-gray-800 hover:bg-blue-700 text-white font-medium transition mb-2">
+        📄 ${name}
+      </button>`
+    ).join('');
+
+    modal.innerHTML = `
+      <div class="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <h3 class="text-white text-lg font-bold mb-1">اختار الورقة</h3>
+        <p class="text-gray-400 text-sm mb-4">الملف فيه ${sheets.length} ورقة — اختار منها:</p>
+        <div id="sheet-options">${options}</div>
+        <button id="cancel-sheet-picker" class="mt-3 w-full text-gray-500 hover:text-gray-300 text-sm">إلغاء</button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll('.sheet-option').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        modal.remove();
+        await confirmClearOrMerge(filePath, idx);
+      });
+    });
+
+    document.getElementById('cancel-sheet-picker').addEventListener('click', () => modal.remove());
+  }
+
+  async function confirmClearOrMerge(filePath, sheetIndex) {
+    const old = document.getElementById('clear-modal');
+    if (old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'clear-modal';
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50';
+    modal.style.background = 'rgba(0,0,0,0.7)';
+
+    modal.innerHTML = `
+      <div class="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <h3 class="text-white text-lg font-bold mb-1">الداتا القديمة</h3>
+        <p class="text-gray-400 text-sm mb-5">عايز تعمل إيه بالموظفين الموجودين حالياً؟</p>
+        <button id="btn-clear" class="w-full bg-red-700 hover:bg-red-600 text-white px-4 py-3 rounded-lg font-semibold mb-3 transition">
+          🗑 امسح الكل وابدأ من الأول
+        </button>
+        <button id="btn-merge" class="w-full bg-blue-700 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold mb-3 transition">
+          ➕ ضيف / حدّث على اللي موجود
+        </button>
+        <button id="btn-cancel-clear" class="w-full text-gray-500 hover:text-gray-300 text-sm mt-1">إلغاء</button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('btn-clear').addEventListener('click', async () => {
+      modal.remove();
+      await applySheet(filePath, sheetIndex, true);
+    });
+    document.getElementById('btn-merge').addEventListener('click', async () => {
+      modal.remove();
+      await applySheet(filePath, sheetIndex, false);
+    });
+    document.getElementById('btn-cancel-clear').addEventListener('click', () => modal.remove());
+  }
+
+  async function applySheet(filePath, sheetIndex, clearFirst = false) {
+    const statusEl = document.getElementById('excel-status');
+    if (statusEl) { statusEl.textContent = 'جاري التحميل...'; statusEl.className = 'text-yellow-400 text-sm mt-2'; }
+
+    const result = await window.proboard.applyExcelSheet({ filePath, sheetIndex, clearFirst });
     if (result.success) {
-      showFileConnectedState(result.filePath);
+      showFileConnectedState(filePath);
+      if (statusEl) { statusEl.textContent = ''; }
       await refreshEmployeeTable();
+    } else {
+      if (statusEl) { statusEl.textContent = `خطأ: ${result.error}`; statusEl.className = 'text-red-400 text-sm mt-2'; }
     }
   }
 
@@ -326,6 +420,28 @@
   document.getElementById('change-file-btn').addEventListener('click', chooseExcelFile);
   document.getElementById('view-board-btn').addEventListener('click', () => window.proboard.focusBoard());
   document.getElementById('export-csv-btn').addEventListener('click', exportToCsv);
+
+  document.getElementById('refresh-excel-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('refresh-excel-btn');
+    const statusEl = document.getElementById('excel-status');
+    btn.disabled = true;
+    btn.textContent = '🔄 جاري...';
+    if (statusEl) { statusEl.textContent = 'جاري التحديث...'; statusEl.className = 'text-yellow-400 text-sm mt-2'; }
+    const result = await window.proboard.refreshExcel();
+    btn.disabled = false;
+    btn.textContent = '🔄 Refresh';
+    if (statusEl) {
+      if (result.success) {
+        statusEl.textContent = 'تم التحديث ✓';
+        statusEl.className = 'text-green-400 text-sm mt-2';
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+      } else {
+        statusEl.textContent = `خطأ: ${result.error}`;
+        statusEl.className = 'text-red-400 text-sm mt-2';
+      }
+    }
+    await refreshEmployeeTable();
+  });
 
   window.proboard.onEmployeesUpdated((data) => {
     employees = data;

@@ -9,6 +9,7 @@ let adminWindow = null;
 let boardWindow = null;
 let watcher = null;
 let currentWatchedFile = null;
+let currentSheetIndex = 0;
 
 const pool = new Pool({
   host: process.env.DB_HOST || '192.168.31.253',
@@ -73,9 +74,15 @@ function broadcastEmployeesUpdated(employees) {
   }
 }
 
-async function readAndSyncExcel(filePath) {
+function getExcelSheets(filePath) {
+  const wb = XLSX.readFile(filePath, { cellFormula: false, cellNF: false, bookSheets: true });
+  return wb.SheetNames;
+}
+
+async function readAndSyncExcel(filePath, sheetIndex = 0, clearFirst = false) {
   const wb = XLSX.readFile(filePath, { cellFormula: false, cellNF: false });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  const sheetName = wb.SheetNames[sheetIndex] || wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
   const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
   const namesRow = data[0];
@@ -96,6 +103,10 @@ async function readAndSyncExcel(filePath) {
     }
   }
 
+  if (clearFirst) {
+    await pool.query('DELETE FROM employees');
+  }
+
   for (const emp of employees) {
     await pool.query(
       `INSERT INTO employees (name, score, updated_at)
@@ -107,7 +118,7 @@ async function readAndSyncExcel(filePath) {
 
   const result = await fetchEmployeesSorted();
   broadcastEmployeesUpdated(result);
-  return employees;
+  return { employees, sheetName };
 }
 
 function startWatchingFile(filePath) {
@@ -231,6 +242,7 @@ function registerIpcHandlers() {
     return employees;
   });
 
+  // Step 1: pick file → return sheet names for user to choose
   ipcMain.handle('choose-excel-file', async () => {
     const result = await dialog.showOpenDialog(adminWindow, {
       title: 'Select Accounts Excel File',
@@ -241,12 +253,38 @@ function registerIpcHandlers() {
     if (result.canceled) return { success: false };
 
     const filePath = result.filePaths[0];
-    await readAndSyncExcel(filePath);
-    startWatchingFile(filePath);
-    currentWatchedFile = filePath;
-    saveConfig({ watchedFile: filePath });
+    const sheets = getExcelSheets(filePath);
 
-    return { success: true, filePath };
+    // Store path temporarily
+    currentWatchedFile = filePath;
+
+    return { success: true, filePath, sheets };
+  });
+
+  // Step 2: user picked a sheet + chose clear/merge
+  ipcMain.handle('apply-excel-sheet', async (_event, { filePath, sheetIndex, clearFirst }) => {
+    try {
+      currentWatchedFile = filePath;
+      currentSheetIndex = sheetIndex || 0;
+      await readAndSyncExcel(filePath, currentSheetIndex, clearFirst);
+      startWatchingFile(filePath);
+      saveConfig({ watchedFile: filePath, sheetIndex: currentSheetIndex });
+      return { success: true };
+    } catch (err) {
+      console.error('apply-excel-sheet error:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // Refresh: re-sync from current file + sheet
+  ipcMain.handle('refresh-excel', async () => {
+    if (!currentWatchedFile) return { success: false, error: 'No file selected' };
+    try {
+      await readAndSyncExcel(currentWatchedFile, currentSheetIndex, false);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   });
 
   ipcMain.handle('get-watched-file', () => currentWatchedFile || null);
@@ -273,13 +311,14 @@ app.whenReady().then(async () => {
   const config = loadConfig();
   if (config.watchedFile && fs.existsSync(config.watchedFile)) {
     currentWatchedFile = config.watchedFile;
+    currentSheetIndex = config.sheetIndex || 0;
   }
 
   createWindows();
 
   if (currentWatchedFile) {
     try {
-      await readAndSyncExcel(currentWatchedFile);
+      await readAndSyncExcel(currentWatchedFile, currentSheetIndex, false);
       startWatchingFile(currentWatchedFile);
     } catch (err) {
       console.error('Failed to load watched Excel file:', err.message);

@@ -238,5 +238,10 @@ const Animations = (() => {
   }
 
   refresh();
+
+  // IPC push من الـ Electron main process
   window.proboard.onEmployeesUpdated((employees) => renderEmployees(employees));
+
+  // Polling كل 10 ثواني كـ fallback لو الـ IPC ما وصلش
+  setInterval(refresh, 10000);
 })();

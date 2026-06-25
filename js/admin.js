@@ -250,6 +250,154 @@
     URL.revokeObjectURL(url);
   };
 
+  // --- Import Excel/CSV ---
+  let pendingImportFile = null;
+
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'import-btn') {
+      document.getElementById('import-file-input').click();
+    }
+  });
+
+  document.addEventListener('change', async (e) => {
+    if (e.target && e.target.id === 'import-file-input') {
+      const file = e.target.files[0];
+      if (!file) return;
+      pendingImportFile = file;
+      e.target.value = '';
+
+      // اجيب أسماء الـ sheets الأول
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await fetch(`${CONFIG.apiUrl}/api/sheets`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.sheets && data.sheets.length > 1) {
+          showSheetPicker(data.sheets);
+        } else {
+          // ورقة واحدة — اسأل clear/merge مباشرة
+          showClearMergeModal(0);
+        }
+      } catch (err) {
+        setImportStatus(`Error: ${err.message}`, 'red');
+      }
+    }
+  });
+
+  function setImportStatus(msg, color) {
+    const el = document.getElementById('import-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = `text-sm text-${color}-400 ml-3`;
+    if (color === 'green') setTimeout(() => { el.textContent = ''; }, 4000);
+  }
+
+  function showSheetPicker(sheets) {
+    const old = document.getElementById('sheet-picker-modal');
+    if (old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'sheet-picker-modal';
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50';
+    modal.style.background = 'rgba(0,0,0,0.75)';
+
+    const options = sheets.map((name, idx) =>
+      `<button data-idx="${idx}"
+        class="sheet-opt w-full text-left px-4 py-3 rounded-lg bg-gray-800 hover:bg-blue-700 text-white font-medium transition mb-2">
+        📄 ${name}
+      </button>`
+    ).join('');
+
+    modal.innerHTML = `
+      <div style="background:#111827;border:1px solid #374151;border-radius:1rem;padding:1.5rem;width:100%;max-width:360px;">
+        <h3 style="color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:4px;">اختار الورقة</h3>
+        <p style="color:#9ca3af;font-size:.85rem;margin-bottom:1rem;">الملف فيه ${sheets.length} ورقة — اختار:</p>
+        ${options}
+        <button id="cancel-sheet" style="width:100%;color:#6b7280;font-size:.85rem;margin-top:8px;background:none;border:none;cursor:pointer;">إلغاء</button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.querySelectorAll('.sheet-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        modal.remove();
+        showClearMergeModal(parseInt(btn.dataset.idx, 10));
+      });
+    });
+    document.getElementById('cancel-sheet').addEventListener('click', () => modal.remove());
+  }
+
+  function showClearMergeModal(sheetIndex) {
+    const old = document.getElementById('clear-modal');
+    if (old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'clear-modal';
+    modal.className = 'fixed inset-0 flex items-center justify-center z-50';
+    modal.style.background = 'rgba(0,0,0,0.75)';
+
+    modal.innerHTML = `
+      <div style="background:#111827;border:1px solid #374151;border-radius:1rem;padding:1.5rem;width:100%;max-width:360px;">
+        <h3 style="color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:4px;">الداتا القديمة</h3>
+        <p style="color:#9ca3af;font-size:.85rem;margin-bottom:1.2rem;">عايز تعمل إيه بالموظفين الموجودين؟</p>
+        <button id="btn-clear" style="width:100%;background:#b91c1c;color:#fff;padding:12px;border-radius:8px;font-weight:600;border:none;cursor:pointer;margin-bottom:10px;">
+          🗑 امسح الكل وابدأ من الأول
+        </button>
+        <button id="btn-merge" style="width:100%;background:#1d4ed8;color:#fff;padding:12px;border-radius:8px;font-weight:600;border:none;cursor:pointer;margin-bottom:10px;">
+          ➕ ضيف / حدّث على اللي موجود
+        </button>
+        <button id="btn-cancel-clear" style="width:100%;color:#6b7280;font-size:.85rem;background:none;border:none;cursor:pointer;">إلغاء</button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      modal.remove();
+      doImport(sheetIndex, true);
+    });
+    document.getElementById('btn-merge').addEventListener('click', () => {
+      modal.remove();
+      doImport(sheetIndex, false);
+    });
+    document.getElementById('btn-cancel-clear').addEventListener('click', () => modal.remove());
+  }
+
+  async function doImport(sheetIndex, clearFirst) {
+    if (!pendingImportFile) return;
+    setImportStatus('جاري الرفع...', 'yellow');
+
+    const formData = new FormData();
+    formData.append('file', pendingImportFile);
+    formData.append('sheetIndex', sheetIndex);
+    formData.append('clearFirst', clearFirst);
+
+    try {
+      const res = await fetch(`${CONFIG.apiUrl}/api/import`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) {
+        setImportStatus(`Error: ${data.error}`, 'red');
+      } else {
+        setImportStatus(data.message, 'green');
+        await loadAndRender();
+      }
+    } catch (err) {
+      setImportStatus('Upload failed', 'red');
+    }
+    pendingImportFile = null;
+  }
+
+  // Refresh button
+  document.addEventListener('click', async (e) => {
+    if (e.target && e.target.id === 'refresh-db-btn') {
+      e.target.textContent = '🔄 جاري...';
+      e.target.disabled = true;
+      await loadAndRender();
+      e.target.textContent = '🔄 Refresh';
+      e.target.disabled = false;
+    }
+  });
+
   mainPanel.classList.remove('hidden');
   loadAndRender();
 })();

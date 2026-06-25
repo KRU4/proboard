@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('proboard', {
     return () => ipcRenderer.removeListener('employees-updated', handler);
   },
   chooseExcelFile: () => ipcRenderer.invoke('choose-excel-file'),
+  applyExcelSheet: (opts) => ipcRenderer.invoke('apply-excel-sheet', opts),
+  refreshExcel: () => ipcRenderer.invoke('refresh-excel'),
   getWatchedFile: () => ipcRenderer.invoke('get-watched-file'),
   focusBoard: () => ipcRenderer.invoke('focus-board'),
 });
